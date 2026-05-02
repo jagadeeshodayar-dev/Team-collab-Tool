@@ -10,6 +10,8 @@ export const workspaceSchema = {
     assigneeId: 'teamMembers.id',
     dueDate: 'ISO date',
     createdAt: 'ISO date',
+    progress: 'number 0-100',
+    comments: 'TaskComment[]',
   },
   teamMembers: {
     id: 'string',
@@ -86,6 +88,15 @@ export const workspaceSeed: WorkspaceData = {
       assigneeId: 'member-marcus',
       dueDate: '2026-05-10',
       createdAt: '2026-05-01',
+      progress: 58,
+      comments: [
+        {
+          id: 'comment-react-1',
+          authorId: 'member-sarah',
+          message: 'Please confirm compatibility risks before we move this to review.',
+          createdAt: '2026-05-02T09:00:00+05:30',
+        },
+      ],
     },
     {
       id: 'task-onboarding',
@@ -96,6 +107,8 @@ export const workspaceSeed: WorkspaceData = {
       assigneeId: 'member-elena',
       dueDate: '2026-05-15',
       createdAt: '2026-05-01',
+      progress: 12,
+      comments: [],
     },
     {
       id: 'task-db-optimization',
@@ -106,6 +119,15 @@ export const workspaceSeed: WorkspaceData = {
       assigneeId: 'member-james',
       dueDate: '2026-05-08',
       createdAt: '2026-05-02',
+      progress: 86,
+      comments: [
+        {
+          id: 'comment-db-1',
+          authorId: 'member-james',
+          message: 'Query timing is down by 38%. Waiting for dashboard verification.',
+          createdAt: '2026-05-02T08:30:00+05:30',
+        },
+      ],
     },
     {
       id: 'task-feedback',
@@ -116,6 +138,8 @@ export const workspaceSeed: WorkspaceData = {
       assigneeId: 'member-sarah',
       dueDate: '2026-04-30',
       createdAt: '2026-04-20',
+      progress: 100,
+      comments: [],
     },
   ],
   notifications: [
@@ -151,6 +175,22 @@ export const workspaceSeed: WorkspaceData = {
       actionLabel: 'Check plan',
       entityType: 'task',
       entityId: 'task-react-19',
+    },
+  ],
+  chats: [
+    {
+      id: 'chat-marcus-1',
+      memberId: 'member-marcus',
+      sender: 'member',
+      message: 'React migration is moving. I need review coverage on routing changes.',
+      createdAt: '2026-05-02T10:20:00+05:30',
+    },
+    {
+      id: 'chat-sarah-1',
+      memberId: 'member-sarah',
+      sender: 'member',
+      message: 'I can help unblock priority decisions after the dashboard review.',
+      createdAt: '2026-05-02T09:40:00+05:30',
     },
   ],
   projectAnalytics: [

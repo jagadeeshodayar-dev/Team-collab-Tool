@@ -24,7 +24,7 @@ export default function SyncroAI() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const workspaceContext = useMemo(() => {
-    const taskSummary = data.tasks.map((task) => `${task.title}: ${task.status}, ${task.priority} priority, due ${task.dueDate}`).join('\n');
+    const taskSummary = data.tasks.map((task) => `${task.title}: ${task.status}, ${task.progress}% complete, ${task.priority} priority, due ${task.dueDate}`).join('\n');
     const teamSummary = data.teamMembers.map((member) => `${member.name}: ${member.role}, ${member.status}`).join('\n');
     const unreadCount = data.notifications.filter((notification) => !notification.read).length;
 
@@ -32,6 +32,7 @@ export default function SyncroAI() {
       `Workspace: ${data.settings.organizationName} / ${data.settings.workspaceName}`,
       `Timezone: ${data.settings.timezone}`,
       `Unread notifications: ${unreadCount}`,
+      `Open chat messages: ${data.chats.length}`,
       'Tasks:',
       taskSummary,
       'Team:',

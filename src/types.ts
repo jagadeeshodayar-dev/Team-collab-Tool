@@ -7,6 +7,15 @@ export interface Task {
   assigneeId: string;
   dueDate: string;
   createdAt: string;
+  progress: number;
+  comments: TaskComment[];
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  message: string;
+  createdAt: string;
 }
 
 export interface TeamMember {
@@ -48,20 +57,36 @@ export interface WorkspaceSettings {
 }
 
 export interface WorkspaceUser {
+  id: string;
   name: string;
   email: string;
   role: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  memberId: string;
+  sender: 'user' | 'member';
+  message: string;
+  createdAt: string;
 }
 
 export interface WorkspaceData {
   tasks: Task[];
   teamMembers: TeamMember[];
   notifications: Notification[];
+  chats: ChatMessage[];
   projectAnalytics: ProjectAnalytics[];
   settings: WorkspaceSettings;
 }
 
 export interface WorkspaceActions {
+  createTask: (input: Omit<Task, 'id' | 'createdAt' | 'comments'>) => void;
+  updateTaskStatus: (taskId: string, status: Task['status']) => void;
+  updateTaskAssignee: (taskId: string, assigneeId: string) => void;
+  updateTaskProgress: (taskId: string, progress: number) => void;
+  addTaskComment: (taskId: string, message: string) => void;
+  sendChatMessage: (memberId: string, message: string) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   clearReadNotifications: () => void;

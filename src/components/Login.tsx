@@ -13,6 +13,7 @@ export default function Login({onLogin}: LoginProps) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onLogin({
+      id: 'current-user',
       name: name.trim() || 'Team Member',
       email: email.trim() || 'member@syncpro.team',
       role: 'Product Lead',
