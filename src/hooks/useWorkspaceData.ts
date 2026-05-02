@@ -1,11 +1,19 @@
-import {useEffect, useMemo, useState} from 'react';
-import {AiMessage, Task, WorkspaceActions, WorkspaceData, WorkspaceSettings, WorkspaceUser} from '../types';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {doc, onSnapshot, setDoc} from 'firebase/firestore';
+import {firebaseDb} from '../lib/firebase';
+import {AiMessage, Task, TeamMember, WorkspaceActions, WorkspaceData, WorkspaceSettings, WorkspaceSyncStatus, WorkspaceUser} from '../types';
 import {workspaceSeed} from '../data/workspaceSchema';
 
 const WORKSPACE_STORAGE_KEY = 'sync-pro-workspace-v1';
 const USER_STORAGE_KEY = 'sync-pro-user-v1';
+const WORKSPACE_DOC_PATH = ['workspaces', 'sync-pro-demo'] as const;
 
 const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const userIdFromEmail = (email: string) =>
+  `user-${email.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'guest'}`;
+
+const avatarForUser = (name: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'Guest')}`;
 
 const createNotification = (
   title: string,
@@ -27,42 +35,46 @@ const createNotification = (
 const addNotification = (current: WorkspaceData, notification: WorkspaceData['notifications'][number]) =>
   current.settings.notificationsEnabled ? [notification, ...current.notifications] : current.notifications;
 
+const normalizeWorkspace = (input?: Partial<WorkspaceData>): WorkspaceData => {
+  const parsed = input ?? {};
+
+  return {
+    ...workspaceSeed,
+    ...parsed,
+    settings: {...workspaceSeed.settings, ...parsed.settings},
+    tasks: (parsed.tasks ?? workspaceSeed.tasks).map((task, index) => ({
+      ...task,
+      progress:
+        typeof task.progress === 'number'
+          ? task.progress
+          : task.status === 'done'
+            ? 100
+            : task.status === 'review'
+              ? 80
+              : task.status === 'in-progress'
+                ? 40
+                : 0,
+      comments: task.comments ?? workspaceSeed.tasks[index]?.comments ?? [],
+    })),
+    teamMembers: parsed.teamMembers ?? workspaceSeed.teamMembers,
+    notifications: (parsed.notifications ?? workspaceSeed.notifications).map((notification) => ({
+      ...notification,
+      title: notification.title ?? 'Workspace update',
+      createdAt: notification.createdAt ?? new Date().toISOString(),
+    })),
+    chats: parsed.chats ?? workspaceSeed.chats,
+    aiConversations: parsed.aiConversations?.length ? parsed.aiConversations : workspaceSeed.aiConversations,
+    activeAiConversationId: parsed.activeAiConversationId ?? workspaceSeed.activeAiConversationId,
+    projectAnalytics: parsed.projectAnalytics ?? workspaceSeed.projectAnalytics,
+  };
+};
+
 const loadWorkspace = (): WorkspaceData => {
   if (typeof window === 'undefined') return workspaceSeed;
 
   try {
     const saved = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    if (!saved) return workspaceSeed;
-    const parsed = JSON.parse(saved) as Partial<WorkspaceData>;
-    return {
-      ...workspaceSeed,
-      ...parsed,
-      settings: {...workspaceSeed.settings, ...parsed.settings},
-      tasks: (parsed.tasks ?? workspaceSeed.tasks).map((task, index) => ({
-        ...task,
-        progress:
-          typeof task.progress === 'number'
-            ? task.progress
-            : task.status === 'done'
-              ? 100
-              : task.status === 'review'
-                ? 80
-                : task.status === 'in-progress'
-                  ? 40
-                  : 0,
-        comments: task.comments ?? workspaceSeed.tasks[index]?.comments ?? [],
-      })),
-      teamMembers: parsed.teamMembers ?? workspaceSeed.teamMembers,
-      notifications: (parsed.notifications ?? workspaceSeed.notifications).map((notification) => ({
-        ...notification,
-        title: notification.title ?? 'Workspace update',
-        createdAt: notification.createdAt ?? new Date().toISOString(),
-      })),
-      chats: parsed.chats ?? workspaceSeed.chats,
-      aiConversations: parsed.aiConversations?.length ? parsed.aiConversations : workspaceSeed.aiConversations,
-      activeAiConversationId: parsed.activeAiConversationId ?? workspaceSeed.activeAiConversationId,
-      projectAnalytics: parsed.projectAnalytics ?? workspaceSeed.projectAnalytics,
-    };
+    return saved ? normalizeWorkspace(JSON.parse(saved) as Partial<WorkspaceData>) : workspaceSeed;
   } catch {
     return workspaceSeed;
   }
@@ -75,10 +87,11 @@ const loadUser = (): WorkspaceUser | null => {
     const saved = window.localStorage.getItem(USER_STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved) as Partial<WorkspaceUser>;
+    const email = parsed.email ?? 'member@syncpro.team';
     return {
-      id: parsed.id ?? 'current-user',
+      id: parsed.id ?? userIdFromEmail(email),
       name: parsed.name ?? 'Team Member',
-      email: parsed.email ?? 'member@syncpro.team',
+      email,
       role: parsed.role ?? 'Product Lead',
     };
   } catch {
@@ -86,13 +99,70 @@ const loadUser = (): WorkspaceUser | null => {
   }
 };
 
+const memberFromUser = (user: WorkspaceUser): TeamMember => ({
+  id: user.id,
+  name: user.name,
+  role: user.role,
+  avatar: avatarForUser(user.name),
+  status: 'online',
+  email: user.email,
+});
+
 export function useWorkspaceData() {
   const [data, setData] = useState<WorkspaceData>(loadWorkspace);
   const [user, setUser] = useState<WorkspaceUser | null>(loadUser);
+  const [syncStatus, setSyncStatus] = useState<WorkspaceSyncStatus>('connecting');
+  const applyingRemoteRef = useRef(false);
+  const initializedRemoteRef = useRef(false);
+  const workspaceDocRef = useMemo(() => doc(firebaseDb, ...WORKSPACE_DOC_PATH), []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      workspaceDocRef,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const remoteDoc = snapshot.data() as {workspace?: Partial<WorkspaceData>};
+          const remote = remoteDoc.workspace;
+          applyingRemoteRef.current = true;
+          setData(normalizeWorkspace(remote));
+          setSyncStatus('connected');
+          initializedRemoteRef.current = true;
+          window.setTimeout(() => {
+            applyingRemoteRef.current = false;
+          }, 0);
+          return;
+        }
+
+        try {
+          await setDoc(workspaceDocRef, {workspace: data, updatedAt: new Date().toISOString()});
+          setSyncStatus('connected');
+          initializedRemoteRef.current = true;
+        } catch {
+          setSyncStatus('local');
+        }
+      },
+      () => {
+        setSyncStatus('local');
+      },
+    );
+
+    return unsubscribe;
+  }, [workspaceDocRef]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+
+    if (applyingRemoteRef.current) return;
+
+    setDoc(workspaceDocRef, {workspace: data, updatedAt: new Date().toISOString()}, {merge: true})
+      .then(() => {
+        setSyncStatus('connected');
+        initializedRemoteRef.current = true;
+      })
+      .catch(() => {
+        setSyncStatus(initializedRemoteRef.current ? 'connected' : 'local');
+      });
+  }, [data, workspaceDocRef]);
 
   useEffect(() => {
     if (user) {
@@ -101,6 +171,10 @@ export function useWorkspaceData() {
       window.localStorage.removeItem(USER_STORAGE_KEY);
     }
   }, [user]);
+
+  const updateWorkspace = useCallback((recipe: (current: WorkspaceData) => WorkspaceData) => {
+    setData((current) => normalizeWorkspace(recipe(current)));
+  }, []);
 
   const actions = useMemo<WorkspaceActions>(
     () => ({
@@ -112,7 +186,7 @@ export function useWorkspaceData() {
           comments: [],
         };
 
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
           tasks: [task, ...current.tasks],
           notifications: addNotification(current, createNotification('Task created', `${task.title} was added to the workflow.`, 'success', task.id)),
@@ -120,7 +194,7 @@ export function useWorkspaceData() {
         return task.id;
       },
       updateTaskStatus: (taskId: string, status: Task['status']) => {
-        setData((current) => {
+        updateWorkspace((current) => {
           const task = current.tasks.find((item) => item.id === taskId);
           if (!task || task.status === status) return current;
           const progress = status === 'done' ? 100 : status === 'review' ? Math.max(task.progress, 80) : status === 'in-progress' ? Math.max(task.progress, 25) : task.progress;
@@ -136,7 +210,7 @@ export function useWorkspaceData() {
         });
       },
       updateTaskAssignee: (taskId: string, assigneeId: string) => {
-        setData((current) => {
+        updateWorkspace((current) => {
           const task = current.tasks.find((item) => item.id === taskId);
           const member = current.teamMembers.find((item) => item.id === assigneeId);
           if (!task || !member || task.assigneeId === assigneeId) return current;
@@ -151,7 +225,7 @@ export function useWorkspaceData() {
       updateTaskProgress: (taskId: string, progress: number) => {
         const nextProgress = Math.min(100, Math.max(0, Math.round(progress)));
 
-        setData((current) => {
+        updateWorkspace((current) => {
           const task = current.tasks.find((item) => item.id === taskId);
           if (!task) return current;
           const status = nextProgress === 100 ? 'done' : nextProgress >= 80 ? 'review' : nextProgress > 0 ? 'in-progress' : 'todo';
@@ -170,9 +244,10 @@ export function useWorkspaceData() {
         const trimmed = message.trim();
         if (!trimmed) return;
 
-        setData((current) => {
+        updateWorkspace((current) => {
           const task = current.tasks.find((item) => item.id === taskId);
           if (!task) return current;
+          const authorId = user?.id ?? 'current-user';
 
           return {
             ...current,
@@ -184,7 +259,7 @@ export function useWorkspaceData() {
                       ...item.comments,
                       {
                         id: createId('comment'),
-                        authorId: 'current-user',
+                        authorId,
                         message: trimmed,
                         createdAt: new Date().toISOString(),
                       },
@@ -200,9 +275,10 @@ export function useWorkspaceData() {
         const trimmed = message.trim();
         if (!trimmed) return;
 
-        setData((current) => {
+        updateWorkspace((current) => {
           const member = current.teamMembers.find((item) => item.id === memberId);
           if (!member) return current;
+          const senderName = user?.name ?? 'A teammate';
 
           const userMessage = {
             id: createId('chat'),
@@ -211,24 +287,17 @@ export function useWorkspaceData() {
             message: trimmed,
             createdAt: new Date().toISOString(),
           };
-          const reply = {
-            id: createId('chat-reply'),
-            memberId,
-            sender: 'member' as const,
-            message: `${member.name.split(' ')[0]} received it. I will coordinate on the next action and keep the task owner updated.`,
-            createdAt: new Date(Date.now() + 1000).toISOString(),
-          };
 
           return {
             ...current,
-            chats: [...current.chats, userMessage, reply],
-            notifications: addNotification(current, createNotification('Team message sent', `Message thread with ${member.name} was updated.`, 'success')),
+            chats: [...current.chats, userMessage],
+            notifications: addNotification(current, createNotification('Team message sent', `${senderName} messaged ${member.name}.`, 'success')),
           };
         });
       },
       createAiConversation: () => {
         const conversationId = createId('ai-conversation');
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
           activeAiConversationId: conversationId,
           aiConversations: [
@@ -252,21 +321,14 @@ export function useWorkspaceData() {
         return conversationId;
       },
       setActiveAiConversation: (conversationId: string) => {
-        setData((current) => ({
-          ...current,
-          activeAiConversationId: conversationId,
-        }));
+        updateWorkspace((current) => ({...current, activeAiConversationId: conversationId}));
       },
       addAiMessage: (message: Omit<AiMessage, 'id' | 'createdAt'>) => {
-        setData((current) => {
+        updateWorkspace((current) => {
           const activeConversation = current.aiConversations.find((conversation) => conversation.id === current.activeAiConversationId);
           const conversationId = activeConversation?.id ?? current.aiConversations[0]?.id ?? workspaceSeed.activeAiConversationId;
           const now = new Date().toISOString();
-          const nextMessage = {
-            ...message,
-            id: createId('ai-message'),
-            createdAt: now,
-          };
+          const nextMessage = {...message, id: createId('ai-message'), createdAt: now};
 
           return {
             ...current,
@@ -275,10 +337,7 @@ export function useWorkspaceData() {
               conversation.id === conversationId
                 ? {
                     ...conversation,
-                    title:
-                      conversation.title === 'New workspace chat' && message.role === 'user'
-                        ? message.content.slice(0, 44)
-                        : conversation.title,
+                    title: conversation.title === 'New workspace chat' && message.role === 'user' ? message.content.slice(0, 44) : conversation.title,
                     updatedAt: now,
                     messages: [...conversation.messages, nextMessage],
                   }
@@ -288,7 +347,7 @@ export function useWorkspaceData() {
         });
       },
       clearAiConversation: (conversationId: string) => {
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
           aiConversations: current.aiConversations.map((conversation) =>
             conversation.id === conversationId
@@ -310,41 +369,64 @@ export function useWorkspaceData() {
         }));
       },
       markNotificationRead: (id: string) => {
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
-          notifications: current.notifications.map((notification) =>
-            notification.id === id ? {...notification, read: true} : notification,
-          ),
+          notifications: current.notifications.map((notification) => (notification.id === id ? {...notification, read: true} : notification)),
         }));
       },
       markAllNotificationsRead: () => {
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
           notifications: current.notifications.map((notification) => ({...notification, read: true})),
         }));
       },
       clearReadNotifications: () => {
-        setData((current) => ({
+        updateWorkspace((current) => ({
           ...current,
           notifications: current.notifications.filter((notification) => !notification.read),
         }));
       },
       updateSettings: (settings: Partial<WorkspaceSettings>) => {
-        setData((current) => ({
-          ...current,
-          settings: {...current.settings, ...settings},
-        }));
+        updateWorkspace((current) => ({...current, settings: {...current.settings, ...settings}}));
       },
       resetWorkspace: () => {
-        setData(workspaceSeed);
+        updateWorkspace(() => workspaceSeed);
       },
     }),
-    [],
+    [updateWorkspace, user?.id, user?.name],
   );
 
-  const login = (nextUser: WorkspaceUser) => setUser(nextUser);
-  const logout = () => setUser(null);
+  const login = (nextUser: WorkspaceUser) => {
+    const normalizedUser = {
+      ...nextUser,
+      id: nextUser.id || userIdFromEmail(nextUser.email),
+      email: nextUser.email.trim().toLowerCase(),
+      name: nextUser.name.trim() || 'Team Member',
+    };
+    setUser(normalizedUser);
+    updateWorkspace((current) => {
+      const member = memberFromUser(normalizedUser);
+      const exists = current.teamMembers.some((item) => item.id === member.id);
+      return {
+        ...current,
+        teamMembers: exists
+          ? current.teamMembers.map((item) => (item.id === member.id ? {...item, ...member, status: 'online'} : item))
+          : [member, ...current.teamMembers],
+        notifications: addNotification(current, createNotification('Teammate online', `${member.name} joined the workspace.`, 'success')),
+      };
+    });
+  };
+
+  const logout = () => {
+    if (user) {
+      updateWorkspace((current) => ({
+        ...current,
+        teamMembers: current.teamMembers.map((member) => (member.id === user.id ? {...member, status: 'offline'} : member)),
+      }));
+    }
+    setUser(null);
+  };
   const unreadCount = data.notifications.filter((notification) => !notification.read).length;
 
-  return {data, actions, user, login, logout, unreadCount};
+  return {data, actions, user, login, logout, unreadCount, syncStatus};
 }

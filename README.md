@@ -10,13 +10,13 @@ Sync Pro targets team collaboration and workflow coordination for product, engin
 
 ## Approach And Logic
 
-The solution is built as a React + Vite single page application with a local workspace data model. The UI uses a dashboard-first layout with a fixed desktop sidebar, mobile bottom navigation, and Poppins-based brand styling. Recharts powers the analytics view, Firebase powers hosting and app initialization, and Google Gemini powers the AI assistant.
+The solution is built as a React + Vite single page application with a real-time workspace model. The UI uses a dashboard-first layout with a fixed desktop sidebar, mobile bottom navigation, and Poppins-based brand styling. Recharts powers the analytics view, Firebase powers hosting and Firestore-backed collaboration, and Google Gemini powers the AI assistant.
 
-The app uses a context-driven workspace store in `src/context/WorkspaceContext.tsx` and `src/hooks/useWorkspaceData.ts`. Workspace data is persisted in `localStorage` so users can refresh without losing tasks, notifications, team chats, settings, or AI chat history. Seed data remains available as a fallback through `src/data/workspaceSchema.ts`.
+The app uses a context-driven workspace store in `src/context/WorkspaceContext.tsx` and `src/hooks/useWorkspaceData.ts`. Workspace data syncs to a shared Firestore workspace document through real-time listeners, while `localStorage` remains as a fallback when Firestore is unavailable. Seed data remains available through `src/data/workspaceSchema.ts`.
 
 ## How The Solution Works
 
-- Login creates a local user session.
+- Login uses the entered name and email to create a real assignable workspace member.
 - Dashboard summarizes tasks, progress, active members, and critical work.
 - Workflows lets users create tasks, assign owners, update status, update progress, and add comments.
 - Assignment, progress, comments, and chat actions create notifications.
@@ -27,6 +27,7 @@ The app uses a context-driven workspace store in `src/context/WorkspaceContext.t
 - Global search in the header finds tasks, people, notifications, and AI conversations.
 - Guide page explains how to use the app.
 - Export downloads the current workspace state as JSON.
+- A live-sync badge shows whether Firestore is connected or the app is running in local fallback mode.
 
 ## Google Services Integration
 
@@ -36,19 +37,23 @@ The app uses a context-driven workspace store in `src/context/WorkspaceContext.t
   - Used for workspace-aware planning, risk analysis, ownership guidance, and workflow suggestions.
 - Firebase
   - Firebase JavaScript SDK initialization in `src/lib/firebase.ts`.
+  - Cloud Firestore real-time workspace sync through `onSnapshot` and `setDoc`.
   - Firebase Hosting deployment with `firebase.json`.
 
 ## Security Notes
 
 - Secrets are loaded from environment variables and `.env` is ignored by Git.
 - The browser build uses `VITE_GEMINI_API_KEY` because Vite only exposes variables prefixed with `VITE_`.
-- This prototype uses local browser persistence, not a production database or server-side auth.
+- Firestore is used as a shared real-time workspace document for the demo.
+- Local browser persistence remains as a fallback for offline or blocked Firestore access.
+- This prototype uses lightweight email/name login, not production authentication.
 - For production, Gemini calls should be proxied through a server endpoint so API keys are never shipped to the browser.
+- For production, Firebase Authentication and locked Firestore security rules should be added.
 
 ## Assumptions
 
 - This is a frontend prototype intended for review and demonstration.
-- Local persistence is acceptable for the submitted version.
+- Real-time Firestore sync is the primary collaboration path, with local fallback for reviewer reliability.
 - Seed data acts as fallback data when no saved workspace exists.
 - Firebase Hosting is the deployment target.
 - The user has a valid Gemini API key enabled for Gemini models.
@@ -74,6 +79,8 @@ Manual validation performed:
 - Notifications can be marked read and cleared.
 - AI chat persists into AI History.
 - Export downloads workspace JSON.
+- Login identity appears in the people list and can be assigned to tasks.
+- Firestore live-sync badge appears in the header when connected.
 - Firebase Hosting deploy succeeds.
 
 ## Accessibility And UX

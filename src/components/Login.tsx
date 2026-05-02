@@ -12,10 +12,11 @@ export default function Login({onLogin}: LoginProps) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase() || 'member@syncpro.team';
     onLogin({
-      id: 'current-user',
+      id: `user-${normalizedEmail.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
       name: name.trim() || 'Team Member',
-      email: email.trim() || 'member@syncpro.team',
+      email: normalizedEmail,
       role: 'Product Lead',
     });
   };

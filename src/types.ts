@@ -115,6 +115,8 @@ export interface WorkspaceActions {
   resetWorkspace: () => void;
 }
 
+export type WorkspaceSyncStatus = 'connecting' | 'connected' | 'local';
+
 export interface WorkspaceViewProps {
   data: WorkspaceData;
   actions: WorkspaceActions;

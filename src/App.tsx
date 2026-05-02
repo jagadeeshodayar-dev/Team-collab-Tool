@@ -25,7 +25,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const {data, user, login, logout, unreadCount} = useWorkspace();
+  const {data, user, login, logout, unreadCount, syncStatus} = useWorkspace();
 
   if (!user) {
     return <Login onLogin={login} />;
@@ -149,8 +149,11 @@ export default function App() {
                   <span className="hidden rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase text-indigo-600 sm:inline-flex">
                     Workflow Active
                   </span>
+                  <span className={cn('hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase sm:inline-flex', syncStatus === 'connected' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600')}>
+                    {syncStatus === 'connected' ? 'Live sync' : 'Local mode'}
+                  </span>
                 </div>
-                <p className="text-xs font-medium text-slate-500 sm:hidden">{data.settings.workspaceName}</p>
+                <p className="text-xs font-medium text-slate-500 sm:hidden">{data.settings.workspaceName} - {syncStatus === 'connected' ? 'Live sync' : 'Local mode'}</p>
               </div>
             </div>
 
