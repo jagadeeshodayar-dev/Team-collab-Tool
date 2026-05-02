@@ -3,6 +3,7 @@ import {Activity, Bell, ChevronRight, Download, LogOut, Search, X} from 'lucide-
 import {AnimatePresence, motion} from 'motion/react';
 import AIHistory from './components/AIHistory';
 import Dashboard from './components/Dashboard';
+import Guide from './components/Guide';
 import Login from './components/Login';
 import Notifications from './components/Notifications';
 import Personnel from './components/Personnel';
@@ -16,6 +17,7 @@ import {cn} from './lib/utils';
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAiOpen, setIsAiOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const {data, user, login, logout, unreadCount} = useWorkspace();
 
   if (!user) {
@@ -25,7 +27,6 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-      case 'analytics':
         return <Dashboard />;
       case 'tasks':
         return <TaskBoard />;
@@ -37,19 +38,30 @@ export default function App() {
         return <Notifications />;
       case 'settings':
         return <Settings />;
+      case 'guide':
+        return <Guide />;
       default:
         return <Dashboard />;
     }
   };
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify({...data, exportedAt: new Date().toISOString()}, null, 2)], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'team-sync-export.json';
+    anchor.download = `sync-pro-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const openDashboardMetrics = () => {
+    setActiveTab('dashboard');
+    window.setTimeout(() => {
+      document.getElementById('dashboard-metrics')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }, 50);
   };
 
   const initials = user.name
@@ -58,6 +70,28 @@ export default function App() {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const searchResults = normalizedSearch
+    ? [
+        ...data.tasks
+          .filter((task) => [task.title, task.description, task.status, task.priority].join(' ').toLowerCase().includes(normalizedSearch))
+          .map((task) => ({id: task.id, label: task.title, meta: `Task • ${task.status} • ${task.progress}%`, tab: 'tasks'})),
+        ...data.teamMembers
+          .filter((member) => [member.name, member.role, member.email, member.status].join(' ').toLowerCase().includes(normalizedSearch))
+          .map((member) => ({id: member.id, label: member.name, meta: `Person • ${member.role}`, tab: 'team'})),
+        ...data.notifications
+          .filter((notification) => [notification.title, notification.message, notification.type].join(' ').toLowerCase().includes(normalizedSearch))
+          .map((notification) => ({id: notification.id, label: notification.title, meta: `Notification • ${notification.read ? 'read' : 'unread'}`, tab: 'notifications'})),
+        ...data.aiConversations
+          .filter((conversation) => [conversation.title, ...conversation.messages.map((message) => message.content)].join(' ').toLowerCase().includes(normalizedSearch))
+          .map((conversation) => ({id: conversation.id, label: conversation.title, meta: `${conversation.messages.length} AI messages`, tab: 'ai-history'})),
+      ].slice(0, 8)
+    : [];
+
+  const openSearchResult = (tab: string) => {
+    setActiveTab(tab);
+    setSearchQuery('');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans lg:flex">
@@ -86,9 +120,30 @@ export default function App() {
                 <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search resources..."
                   className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                 />
+                {searchQuery && (
+                  <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((result) => (
+                        <button
+                          key={`${result.tab}-${result.id}`}
+                          onClick={() => openSearchResult(result.tab)}
+                          className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                          type="button"
+                        >
+                          <p className="text-sm font-bold text-slate-900">{result.label}</p>
+                          <p className="mt-1 text-xs text-slate-500">{result.meta}</p>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-5 text-sm text-slate-500">No matching tasks, people, notifications, or AI chats.</div>
+                    )}
+                  </div>
+                )}
               </label>
             </div>
 
@@ -141,7 +196,7 @@ export default function App() {
                   </h2>
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                     <button
-                      onClick={() => setActiveTab('dashboard')}
+                      onClick={openDashboardMetrics}
                       className="inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700"
                     >
                       Analysis Dashboard

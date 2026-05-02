@@ -1,5 +1,5 @@
 import React from 'react';
-import {Bell, Bot, Cpu, Kanban, LayoutDashboard, LineChart, Settings, Terminal, Users} from 'lucide-react';
+import {BookOpen, Bot, Cpu, Kanban, LayoutDashboard, Settings, Terminal, Users} from 'lucide-react';
 import {cn} from '../lib/utils';
 
 interface SidebarProps {
@@ -10,13 +10,12 @@ interface SidebarProps {
 const navItems = [
   {id: 'dashboard', label: 'Overview', icon: LayoutDashboard},
   {id: 'tasks', label: 'Workflows', icon: Kanban},
-  {id: 'analytics', label: 'Analytics', icon: LineChart},
   {id: 'team', label: 'Directory', icon: Users},
   {id: 'ai-history', label: 'AI History', icon: Bot},
+  {id: 'guide', label: 'Guide', icon: BookOpen},
 ];
 
 const bottomItems = [
-  {id: 'notifications', label: 'Updates', icon: Bell},
   {id: 'settings', label: 'Settings', icon: Settings},
 ];
 

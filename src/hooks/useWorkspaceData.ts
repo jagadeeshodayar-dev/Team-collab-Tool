@@ -35,11 +35,28 @@ const loadWorkspace = (): WorkspaceData => {
       ...workspaceSeed,
       ...parsed,
       settings: {...workspaceSeed.settings, ...parsed.settings},
-      tasks: parsed.tasks ?? workspaceSeed.tasks,
+      tasks: (parsed.tasks ?? workspaceSeed.tasks).map((task, index) => ({
+        ...task,
+        progress:
+          typeof task.progress === 'number'
+            ? task.progress
+            : task.status === 'done'
+              ? 100
+              : task.status === 'review'
+                ? 80
+                : task.status === 'in-progress'
+                  ? 40
+                  : 0,
+        comments: task.comments ?? workspaceSeed.tasks[index]?.comments ?? [],
+      })),
       teamMembers: parsed.teamMembers ?? workspaceSeed.teamMembers,
-      notifications: parsed.notifications ?? workspaceSeed.notifications,
+      notifications: (parsed.notifications ?? workspaceSeed.notifications).map((notification) => ({
+        ...notification,
+        title: notification.title ?? 'Workspace update',
+        createdAt: notification.createdAt ?? new Date().toISOString(),
+      })),
       chats: parsed.chats ?? workspaceSeed.chats,
-      aiConversations: parsed.aiConversations ?? workspaceSeed.aiConversations,
+      aiConversations: parsed.aiConversations?.length ? parsed.aiConversations : workspaceSeed.aiConversations,
       activeAiConversationId: parsed.activeAiConversationId ?? workspaceSeed.activeAiConversationId,
       projectAnalytics: parsed.projectAnalytics ?? workspaceSeed.projectAnalytics,
     };
@@ -53,7 +70,14 @@ const loadUser = (): WorkspaceUser | null => {
 
   try {
     const saved = window.localStorage.getItem(USER_STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as WorkspaceUser) : null;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Partial<WorkspaceUser>;
+    return {
+      id: parsed.id ?? 'current-user',
+      name: parsed.name ?? 'Team Member',
+      email: parsed.email ?? 'member@syncpro.team',
+      role: parsed.role ?? 'Product Lead',
+    };
   } catch {
     return null;
   }

@@ -31,7 +31,7 @@ export default function Dashboard() {
     {name: 'Done', value: tasks.filter((t) => t.status === 'done').length},
   ];
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div id="dashboard-metrics" className="scroll-mt-20 space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800">Operational Intelligence</h2>
         <p className="text-sm text-slate-500">Real-time throughput and team bandwidth metrics.</p>
