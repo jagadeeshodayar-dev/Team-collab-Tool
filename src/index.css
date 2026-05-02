@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-primary: #6366f1; /* Indigo */
+  --color-brand-secondary: #4f46e5; /* Darker Indigo */
+  --color-bg-deep: #f8fafc; /* Slate 50 */
+  --color-surface: #ffffff;
+  --color-line: #e2e8f0; /* Slate 200 */
+  --color-text-main: #1e293b; /* Slate 800 */
+  --color-text-muted: #64748b; /* Slate 500 */
+  
+  --spacing-base: 1rem;
+}
+
+:root {
+  font-size: 16px;
+  background-color: var(--color-bg-deep);
+  color: var(--color-text-main);
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased overflow-x-hidden text-slate-800;
+  }
+}
+
+/* Responsive typography using vw for scale */
+.display-title {
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Updated Sleek Card Container */
+.card-container {
+  padding: 1.5em;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 0.75em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* Brand Lines decorative element - updated for Sleek theme */
+.brand-line {
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-secondary));
+  width: 100%;
+}
+
+.brand-line-vertical {
+  width: 2px;
+  background: linear-gradient(180deg, var(--color-brand-primary), var(--color-brand-secondary));
+  height: 100%;
+}
+
+/* Custom Scrollbar for Sleek theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-primary);
+}
