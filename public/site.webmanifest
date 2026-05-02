@@ -1,0 +1,9 @@
+{
+  "name": "Sync Pro",
+  "short_name": "Sync Pro",
+  "description": "Team collaboration dashboard for tasks, people, notifications, settings, and AI workflow guidance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5"
+}

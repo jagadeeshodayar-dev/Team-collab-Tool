@@ -1,11 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {GoogleGenAI} from '@google/genai';
 import { Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import {useWorkspace} from '../context/WorkspaceContext';
 
-// Initialize GoogleGenAI only when an API key is available
-// Using import.meta.env for Vite environment variables
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 interface Message {
@@ -15,14 +13,31 @@ interface Message {
 }
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
 export default function SyncroAI() {
+  const {data} = useWorkspace();
   const [messages, setMessages] = useState<Message[]>([
     { id: 'welcome', role: 'assistant', content: "Hello! I'm Syncro AI. I can help you analyze tasks, summarize team progress, or suggest workflow optimizations. How can I assist you today?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const workspaceContext = useMemo(() => {
+    const taskSummary = data.tasks.map((task) => `${task.title}: ${task.status}, ${task.priority} priority, due ${task.dueDate}`).join('\n');
+    const teamSummary = data.teamMembers.map((member) => `${member.name}: ${member.role}, ${member.status}`).join('\n');
+    const unreadCount = data.notifications.filter((notification) => !notification.read).length;
+
+    return [
+      `Workspace: ${data.settings.organizationName} / ${data.settings.workspaceName}`,
+      `Timezone: ${data.settings.timezone}`,
+      `Unread notifications: ${unreadCount}`,
+      'Tasks:',
+      taskSummary,
+      'Team:',
+      teamSummary,
+    ].join('\n');
+  }, [data]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -39,30 +54,53 @@ export default function SyncroAI() {
     setIsLoading(true);
 
     try {
-      if (!ai) {
-        throw new Error("Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your environment variables.");
+      if (!ai || !apiKey) {
+        throw new Error('Gemini API key is not configured. Add VITE_GEMINI_API_KEY to the environment before deploying.');
       }
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [...messages, userMessage].map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        })),
-        config: {
-          systemInstruction: "You are Syncro AI, a specialized team coordination assistant. Your goal is to improve team coordination and communication. You help users simplify workflows, improve visibility of tasks, and provide data-driven insights. Be concise, professional, and proactive. Use the context of a modern SaaS team platform.",
-        },
-      });
+      const contents = [...messages, userMessage].map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{text: m.content}],
+      }));
+
+      let responseText = '';
+      let lastError: unknown = null;
+
+      for (const model of GEMINI_MODELS) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents,
+            config: {
+              systemInstruction: [
+                'You are Syncro AI, a concise team collaboration assistant.',
+                'Use the workspace context to answer about priorities, owners, deadlines, risks, and next actions.',
+                'Write in clear, practical language. If data is missing, say what is missing and suggest the next step.',
+                workspaceContext,
+              ].join('\n\n'),
+            },
+          });
+          responseText = response.text?.trim() || '';
+          if (responseText) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!responseText) {
+        throw lastError ?? new Error('Gemini returned an empty response.');
+      }
 
       const assistantMessage: Message = { 
         id: createMessageId(),
         role: 'assistant', 
-        content: response.text || "I'm sorry, I couldn't process that request." 
+        content: responseText,
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Gemini Error:", error);
-      setMessages(prev => [...prev, { id: createMessageId(), role: 'assistant', content: "I encountered an error while connecting to the neural network. Please check your connection or API key." }]);
+      const reason = error instanceof Error ? error.message : 'Unknown Gemini connection error.';
+      setMessages(prev => [...prev, { id: createMessageId(), role: 'assistant', content: `I could not reach Gemini yet. ${reason}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +128,9 @@ export default function SyncroAI() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth bg-white"
       >
-        <AnimatePresence initial={false}>
-          {messages.map((m) => (
-            <motion.div
+        {messages.map((m) => (
+            <div
               key={m.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
               className={cn(
                 "flex gap-3 max-w-[90%]",
                 m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
@@ -115,9 +150,8 @@ export default function SyncroAI() {
               )}>
                 {m.content}
               </div>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
         {isLoading && (
           <div className="flex gap-3 mr-auto">
             <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shadow-sm">

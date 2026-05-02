@@ -1,8 +1,7 @@
 import React from 'react';
-import { tasks, teamMembers } from '../mockData';
-import { Clock, MessageSquare, AlertCircle, Calendar } from 'lucide-react';
+import { Clock, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import {useWorkspace} from '../context/WorkspaceContext';
 
 const statusConfig = {
   'todo': { label: 'Queue', color: 'bg-slate-50 border-slate-200' },
@@ -18,23 +17,25 @@ const priorityConfig = {
 };
 
 export default function TaskBoard() {
+  const {data} = useWorkspace();
+  const {tasks, teamMembers} = data;
   const columns: (keyof typeof statusConfig)[] = ['todo', 'in-progress', 'review', 'done'];
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-6">
-      <div className="flex justify-between items-end">
+    <div className="flex h-full flex-col space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Workflow Pipeline</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Workflow Pipeline</h2>
           <p className="text-sm text-slate-500 mt-1">Status of active task deployments and audits.</p>
         </div>
         <div className="flex gap-2">
-          <button className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+          <button className="h-11 w-full rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 sm:w-auto">
             Create Deployment
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-1">
+      <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4 lg:gap-6">
         {columns.map((status) => (
           <div key={status} className="flex flex-col space-y-4">
             <div className="flex items-center justify-between px-2">
@@ -47,17 +48,14 @@ export default function TaskBoard() {
               </span>
             </div>
             
-            <div className="space-y-4 min-h-[500px]">
+            <div className="space-y-4 rounded-2xl border border-slate-200/70 bg-white/50 p-3 min-h-[180px] 2xl:min-h-[500px]">
               {tasks.filter(t => t.status === status).map((task, i) => {
                 const assignee = teamMembers.find(m => m.id === task.assigneeId);
                 return (
-                  <motion.div
+                  <div
                     key={task.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
                     className={cn(
-                      "card-container p-5 cursor-pointer hover:shadow-md hover:border-indigo-300 group transition-all duration-300",
+                      "cursor-pointer rounded-xl border p-4 bg-white hover:shadow-md hover:border-indigo-300 group transition-all duration-300",
                       statusConfig[status].color
                     )}
                   >
@@ -92,7 +90,7 @@ export default function TaskBoard() {
                       </div>
                       <div className={cn("w-1.5 h-1.5 rounded-full", priorityConfig[task.priority].replace('text', 'bg'))} />
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

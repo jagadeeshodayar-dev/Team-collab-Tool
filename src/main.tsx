@@ -3,9 +3,12 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './lib/firebase';
+import {WorkspaceProvider} from './context/WorkspaceContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <WorkspaceProvider>
+      <App />
+    </WorkspaceProvider>
   </StrictMode>,
 );

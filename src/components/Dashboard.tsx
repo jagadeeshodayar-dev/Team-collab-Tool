@@ -12,39 +12,35 @@ import {
   YAxis,
 } from 'recharts';
 import {TrendingUp, Users, CheckCircle2, AlertCircle, ArrowUpRight, ArrowDownRight} from 'lucide-react';
-import {projectAnalytics, tasks, teamMembers} from '../mockData';
-import {motion} from 'motion/react';
 import {cn} from '../lib/utils';
-
-const stats = [
-  {label: 'Total Tasks', value: tasks.length.toString(), change: '+12%', trend: 'up', icon: CheckCircle2, color: 'text-brand-primary'},
-  {label: 'Active Members', value: teamMembers.filter((m) => m.status !== 'offline').length.toString(), change: '+2', trend: 'up', icon: Users, color: 'text-brand-secondary'},
-  {label: 'Productivity', value: '88%', change: '-3%', trend: 'down', icon: TrendingUp, color: 'text-orange-400'},
-  {label: 'Critical Ops', value: '2', change: '0', trend: 'stable', icon: AlertCircle, color: 'text-red-400'},
-];
-
-const taskDistribution = [
-  {name: 'Queue', value: tasks.filter((t) => t.status === 'todo').length},
-  {name: 'Active', value: tasks.filter((t) => t.status === 'in-progress').length},
-  {name: 'Audit', value: tasks.filter((t) => t.status === 'review').length},
-  {name: 'Done', value: tasks.filter((t) => t.status === 'done').length},
-];
+import {useWorkspace} from '../context/WorkspaceContext';
 
 export default function Dashboard() {
+  const {data} = useWorkspace();
+  const {tasks, teamMembers, projectAnalytics} = data;
+  const stats = [
+    {label: 'Total Tasks', value: tasks.length.toString(), change: '+12%', trend: 'up', icon: CheckCircle2, color: 'text-brand-primary'},
+    {label: 'Active Members', value: teamMembers.filter((m) => m.status !== 'offline').length.toString(), change: '+2', trend: 'up', icon: Users, color: 'text-brand-secondary'},
+    {label: 'Productivity', value: '88%', change: '-3%', trend: 'down', icon: TrendingUp, color: 'text-orange-400'},
+    {label: 'Critical Ops', value: tasks.filter((t) => t.priority === 'high' && t.status !== 'done').length.toString(), change: '0', trend: 'stable', icon: AlertCircle, color: 'text-red-400'},
+  ];
+  const taskDistribution = [
+    {name: 'Queue', value: tasks.filter((t) => t.status === 'todo').length},
+    {name: 'Active', value: tasks.filter((t) => t.status === 'in-progress').length},
+    {name: 'Audit', value: tasks.filter((t) => t.status === 'review').length},
+    {name: 'Done', value: tasks.filter((t) => t.status === 'done').length},
+  ];
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 animate-in fade-in duration-700">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800">Operational Intelligence</h2>
         <p className="text-sm text-slate-500">Real-time throughput and team bandwidth metrics.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
+        {stats.map((stat) => (
+          <div
             key={stat.label}
-            initial={{opacity: 0, y: 20}}
-            animate={{opacity: 1, y: 0}}
-            transition={{delay: i * 0.1}}
             className="card-container group hover:shadow-lg hover:border-indigo-200 transition-all duration-300"
           >
             <div className="flex justify-between items-start gap-4 mb-6">
@@ -68,7 +64,7 @@ export default function Dashboard() {
             </div>
             <p className="text-3xl font-bold tracking-tighter text-slate-900">{stat.value}</p>
             <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">{stat.label}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
 

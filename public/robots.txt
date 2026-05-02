@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://team-collaboration-tool-f1169.web.app/sitemap.xml
