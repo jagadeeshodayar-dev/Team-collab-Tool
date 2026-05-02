@@ -14,6 +14,13 @@ import TaskBoard from './components/TaskBoard';
 import {useWorkspace} from './context/WorkspaceContext';
 import {cn} from './lib/utils';
 
+type SearchResult = {
+  id: string;
+  label: string;
+  meta: string;
+  tab: string;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -75,13 +82,13 @@ export default function App() {
     ? [
         ...data.tasks
           .filter((task) => [task.title, task.description, task.status, task.priority].join(' ').toLowerCase().includes(normalizedSearch))
-          .map((task) => ({id: task.id, label: task.title, meta: `Task • ${task.status} • ${task.progress}%`, tab: 'tasks'})),
+          .map((task) => ({id: task.id, label: task.title, meta: `Task - ${task.status} - ${task.progress}%`, tab: 'tasks'})),
         ...data.teamMembers
           .filter((member) => [member.name, member.role, member.email, member.status].join(' ').toLowerCase().includes(normalizedSearch))
-          .map((member) => ({id: member.id, label: member.name, meta: `Person • ${member.role}`, tab: 'team'})),
+          .map((member) => ({id: member.id, label: member.name, meta: `Person - ${member.role}`, tab: 'team'})),
         ...data.notifications
           .filter((notification) => [notification.title, notification.message, notification.type].join(' ').toLowerCase().includes(normalizedSearch))
-          .map((notification) => ({id: notification.id, label: notification.title, meta: `Notification • ${notification.read ? 'read' : 'unread'}`, tab: 'notifications'})),
+          .map((notification) => ({id: notification.id, label: notification.title, meta: `Notification - ${notification.read ? 'read' : 'unread'}`, tab: 'notifications'})),
         ...data.aiConversations
           .filter((conversation) => [conversation.title, ...conversation.messages.map((message) => message.content)].join(' ').toLowerCase().includes(normalizedSearch))
           .map((conversation) => ({id: conversation.id, label: conversation.title, meta: `${conversation.messages.length} AI messages`, tab: 'ai-history'})),
@@ -93,8 +100,40 @@ export default function App() {
     setSearchQuery('');
   };
 
+  const searchBox = (className = '') => (
+    <label className={cn('relative w-full', className)}>
+      <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.target.value)}
+        placeholder="Search tasks, people, updates, AI chats..."
+        className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+      />
+      {searchQuery && (
+        <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
+          {searchResults.length > 0 ? (
+            searchResults.map((result: SearchResult) => (
+              <button
+                key={`${result.tab}-${result.id}`}
+                onClick={() => openSearchResult(result.tab)}
+                className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                type="button"
+              >
+                <p className="text-sm font-bold text-slate-900">{result.label}</p>
+                <p className="mt-1 text-xs text-slate-500">{result.meta}</p>
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-5 text-sm text-slate-500">No matching tasks, people, notifications, or AI chats.</div>
+          )}
+        </div>
+      )}
+    </label>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans lg:flex">
+    <div className={cn('min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans lg:flex', data.settings.compactMode && 'text-[14px]')}>
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="min-w-0 flex-1 lg:pl-64">
@@ -116,35 +155,7 @@ export default function App() {
             </div>
 
             <div className="hidden min-w-0 flex-1 justify-center md:flex">
-              <label className="relative w-full max-w-md">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search resources..."
-                  className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                />
-                {searchQuery && (
-                  <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
-                    {searchResults.length > 0 ? (
-                      searchResults.map((result) => (
-                        <button
-                          key={`${result.tab}-${result.id}`}
-                          onClick={() => openSearchResult(result.tab)}
-                          className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50"
-                          type="button"
-                        >
-                          <p className="text-sm font-bold text-slate-900">{result.label}</p>
-                          <p className="mt-1 text-xs text-slate-500">{result.meta}</p>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-5 text-sm text-slate-500">No matching tasks, people, notifications, or AI chats.</div>
-                    )}
-                  </div>
-                )}
-              </label>
+              {searchBox('max-w-md')}
             </div>
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-4">
@@ -178,6 +189,9 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
+          <div className="border-t border-slate-100 px-4 py-3 md:hidden">
+            {searchBox()}
           </div>
         </header>
 

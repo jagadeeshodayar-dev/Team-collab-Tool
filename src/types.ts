@@ -98,7 +98,7 @@ export interface WorkspaceData {
 }
 
 export interface WorkspaceActions {
-  createTask: (input: Omit<Task, 'id' | 'createdAt' | 'comments'>) => void;
+  createTask: (input: Omit<Task, 'id' | 'createdAt' | 'comments'>) => string;
   updateTaskStatus: (taskId: string, status: Task['status']) => void;
   updateTaskAssignee: (taskId: string, assigneeId: string) => void;
   updateTaskProgress: (taskId: string, progress: number) => void;
@@ -112,6 +112,7 @@ export interface WorkspaceActions {
   markAllNotificationsRead: () => void;
   clearReadNotifications: () => void;
   updateSettings: (settings: Partial<WorkspaceSettings>) => void;
+  resetWorkspace: () => void;
 }
 
 export interface WorkspaceViewProps {

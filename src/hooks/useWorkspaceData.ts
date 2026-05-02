@@ -24,6 +24,9 @@ const createNotification = (
   entityId,
 });
 
+const addNotification = (current: WorkspaceData, notification: WorkspaceData['notifications'][number]) =>
+  current.settings.notificationsEnabled ? [notification, ...current.notifications] : current.notifications;
+
 const loadWorkspace = (): WorkspaceData => {
   if (typeof window === 'undefined') return workspaceSeed;
 
@@ -112,11 +115,9 @@ export function useWorkspaceData() {
         setData((current) => ({
           ...current,
           tasks: [task, ...current.tasks],
-          notifications: [
-            createNotification('Task created', `${task.title} was added to the workflow.`, 'success', task.id),
-            ...current.notifications,
-          ],
+          notifications: addNotification(current, createNotification('Task created', `${task.title} was added to the workflow.`, 'success', task.id)),
         }));
+        return task.id;
       },
       updateTaskStatus: (taskId: string, status: Task['status']) => {
         setData((current) => {
@@ -127,10 +128,10 @@ export function useWorkspaceData() {
           return {
             ...current,
             tasks: current.tasks.map((item) => (item.id === taskId ? {...item, status, progress} : item)),
-            notifications: [
+            notifications: addNotification(
+              current,
               createNotification('Task status updated', `${task.title} moved to ${status.replace('-', ' ')}.`, status === 'done' ? 'success' : 'info', task.id),
-              ...current.notifications,
-            ],
+            ),
           };
         });
       },
@@ -143,10 +144,7 @@ export function useWorkspaceData() {
           return {
             ...current,
             tasks: current.tasks.map((item) => (item.id === taskId ? {...item, assigneeId} : item)),
-            notifications: [
-              createNotification('Task assigned', `${task.title} is now assigned to ${member.name}.`, 'info', task.id),
-              ...current.notifications,
-            ],
+            notifications: addNotification(current, createNotification('Task assigned', `${task.title} is now assigned to ${member.name}.`, 'info', task.id)),
           };
         });
       },
@@ -161,10 +159,10 @@ export function useWorkspaceData() {
           return {
             ...current,
             tasks: current.tasks.map((item) => (item.id === taskId ? {...item, progress: nextProgress, status} : item)),
-            notifications: [
+            notifications: addNotification(
+              current,
               createNotification('Progress updated', `${task.title} is now ${nextProgress}% complete.`, nextProgress === 100 ? 'success' : 'info', task.id),
-              ...current.notifications,
-            ],
+            ),
           };
         });
       },
@@ -194,10 +192,7 @@ export function useWorkspaceData() {
                   }
                 : item,
             ),
-            notifications: [
-              createNotification('New task comment', `A comment was added to ${task.title}.`, 'info', task.id),
-              ...current.notifications,
-            ],
+            notifications: addNotification(current, createNotification('New task comment', `A comment was added to ${task.title}.`, 'info', task.id)),
           };
         });
       },
@@ -227,10 +222,7 @@ export function useWorkspaceData() {
           return {
             ...current,
             chats: [...current.chats, userMessage, reply],
-            notifications: [
-              createNotification('Team message sent', `Message thread with ${member.name} was updated.`, 'success'),
-              ...current.notifications,
-            ],
+            notifications: addNotification(current, createNotification('Team message sent', `Message thread with ${member.name} was updated.`, 'success')),
           };
         });
       },
@@ -342,6 +334,9 @@ export function useWorkspaceData() {
           ...current,
           settings: {...current.settings, ...settings},
         }));
+      },
+      resetWorkspace: () => {
+        setData(workspaceSeed);
       },
     }),
     [],

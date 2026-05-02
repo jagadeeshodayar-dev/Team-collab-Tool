@@ -1,5 +1,5 @@
 import React from 'react';
-import {Bell, Building2, Clock3, LayoutGrid, ShieldCheck, UserRoundCheck} from 'lucide-react';
+import {Bell, Building2, Clock3, LayoutGrid, RotateCcw, ShieldCheck, UserRoundCheck} from 'lucide-react';
 import {useWorkspace} from '../context/WorkspaceContext';
 
 const settingRows = [
@@ -119,6 +119,20 @@ export default function Settings() {
               </button>
             );
           })}
+
+          <button
+            type="button"
+            onClick={actions.resetWorkspace}
+            className="flex w-full items-center justify-between gap-4 rounded-xl border border-red-100 bg-red-50 p-4 text-left transition hover:border-red-200 hover:bg-red-100"
+          >
+            <div className="flex items-start gap-3">
+              <RotateCcw className="mt-0.5 h-4.5 w-4.5 text-red-500" />
+              <div>
+                <p className="text-sm font-bold text-red-700">Reset demo workspace</p>
+                <p className="mt-1 text-xs leading-relaxed text-red-600">Restore the seeded tasks, people, chats, notifications, and AI history.</p>
+              </div>
+            </div>
+          </button>
         </div>
       </section>
     </div>

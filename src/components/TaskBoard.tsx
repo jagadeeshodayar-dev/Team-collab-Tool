@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {Calendar, CheckCircle2, Clock, MessageSquare, Plus, UserRound} from 'lucide-react';
+import {CheckCircle2, Clock, MessageSquare, Plus, UserRound} from 'lucide-react';
 import {useWorkspace} from '../context/WorkspaceContext';
 import {cn} from '../lib/utils';
 import {Task} from '../types';
@@ -40,7 +40,7 @@ export default function TaskBoard() {
     event.preventDefault();
     if (!newTask.title.trim()) return;
 
-    actions.createTask({
+    const taskId = actions.createTask({
       title: newTask.title.trim(),
       description: newTask.description.trim() || 'No description added yet.',
       status: 'todo',
@@ -49,6 +49,7 @@ export default function TaskBoard() {
       dueDate: newTask.dueDate,
       progress: 0,
     });
+    setSelectedTaskId(taskId);
     setNewTask((current) => ({...current, title: '', description: ''}));
   };
 
