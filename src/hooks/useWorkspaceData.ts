@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from 'react';
-import {Task, WorkspaceActions, WorkspaceData, WorkspaceSettings, WorkspaceUser} from '../types';
+import {AiMessage, Task, WorkspaceActions, WorkspaceData, WorkspaceSettings, WorkspaceUser} from '../types';
 import {workspaceSeed} from '../data/workspaceSchema';
 
 const WORKSPACE_STORAGE_KEY = 'sync-pro-workspace-v1';
@@ -39,6 +39,8 @@ const loadWorkspace = (): WorkspaceData => {
       teamMembers: parsed.teamMembers ?? workspaceSeed.teamMembers,
       notifications: parsed.notifications ?? workspaceSeed.notifications,
       chats: parsed.chats ?? workspaceSeed.chats,
+      aiConversations: parsed.aiConversations ?? workspaceSeed.aiConversations,
+      activeAiConversationId: parsed.activeAiConversationId ?? workspaceSeed.activeAiConversationId,
       projectAnalytics: parsed.projectAnalytics ?? workspaceSeed.projectAnalytics,
     };
   } catch {
@@ -207,6 +209,89 @@ export function useWorkspaceData() {
             ],
           };
         });
+      },
+      createAiConversation: () => {
+        const conversationId = createId('ai-conversation');
+        setData((current) => ({
+          ...current,
+          activeAiConversationId: conversationId,
+          aiConversations: [
+            {
+              id: conversationId,
+              title: 'New workspace chat',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              messages: [
+                {
+                  id: createId('ai-message'),
+                  role: 'assistant',
+                  content: "I'm ready. Ask me about priorities, owners, risks, progress, or coordination plans.",
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            },
+            ...current.aiConversations,
+          ],
+        }));
+        return conversationId;
+      },
+      setActiveAiConversation: (conversationId: string) => {
+        setData((current) => ({
+          ...current,
+          activeAiConversationId: conversationId,
+        }));
+      },
+      addAiMessage: (message: Omit<AiMessage, 'id' | 'createdAt'>) => {
+        setData((current) => {
+          const activeConversation = current.aiConversations.find((conversation) => conversation.id === current.activeAiConversationId);
+          const conversationId = activeConversation?.id ?? current.aiConversations[0]?.id ?? workspaceSeed.activeAiConversationId;
+          const now = new Date().toISOString();
+          const nextMessage = {
+            ...message,
+            id: createId('ai-message'),
+            createdAt: now,
+          };
+
+          return {
+            ...current,
+            activeAiConversationId: conversationId,
+            aiConversations: current.aiConversations.map((conversation) =>
+              conversation.id === conversationId
+                ? {
+                    ...conversation,
+                    title:
+                      conversation.title === 'New workspace chat' && message.role === 'user'
+                        ? message.content.slice(0, 44)
+                        : conversation.title,
+                    updatedAt: now,
+                    messages: [...conversation.messages, nextMessage],
+                  }
+                : conversation,
+            ),
+          };
+        });
+      },
+      clearAiConversation: (conversationId: string) => {
+        setData((current) => ({
+          ...current,
+          aiConversations: current.aiConversations.map((conversation) =>
+            conversation.id === conversationId
+              ? {
+                  ...conversation,
+                  title: 'New workspace chat',
+                  updatedAt: new Date().toISOString(),
+                  messages: [
+                    {
+                      id: createId('ai-message'),
+                      role: 'assistant',
+                      content: "I'm ready. Ask me about priorities, owners, risks, progress, or coordination plans.",
+                      createdAt: new Date().toISOString(),
+                    },
+                  ],
+                }
+              : conversation,
+          ),
+        }));
       },
       markNotificationRead: (id: string) => {
         setData((current) => ({

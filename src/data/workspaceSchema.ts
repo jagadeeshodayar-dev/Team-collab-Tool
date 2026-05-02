@@ -193,6 +193,23 @@ export const workspaceSeed: WorkspaceData = {
       createdAt: '2026-05-02T09:40:00+05:30',
     },
   ],
+  activeAiConversationId: 'ai-conversation-default',
+  aiConversations: [
+    {
+      id: 'ai-conversation-default',
+      title: 'Workspace planning',
+      createdAt: '2026-05-02T10:00:00+05:30',
+      updatedAt: '2026-05-02T10:00:00+05:30',
+      messages: [
+        {
+          id: 'ai-message-welcome',
+          role: 'assistant',
+          content: "Hello! I'm Syncro AI. I can help you analyze tasks, summarize team progress, or suggest workflow optimizations. How can I assist you today?",
+          createdAt: '2026-05-02T10:00:00+05:30',
+        },
+      ],
+    },
+  ],
   projectAnalytics: [
     {date: 'Mon', completed: 5, active: 12, new: 3},
     {date: 'Tue', completed: 8, active: 10, new: 5},

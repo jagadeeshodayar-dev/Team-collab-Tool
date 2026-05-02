@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {Activity, Bell, ChevronRight, Download, LogOut, Search, X} from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
+import AIHistory from './components/AIHistory';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Notifications from './components/Notifications';
@@ -30,6 +31,8 @@ export default function App() {
         return <TaskBoard />;
       case 'team':
         return <Personnel />;
+      case 'ai-history':
+        return <AIHistory />;
       case 'notifications':
         return <Notifications />;
       case 'settings':
@@ -204,7 +207,10 @@ export default function App() {
                     </button>
                   </div>
                   <div className="min-h-0 flex-1 overflow-hidden">
-                    <SyncroAI />
+                    <SyncroAI onOpenHistory={() => {
+                      setActiveTab('ai-history');
+                      setIsAiOpen(false);
+                    }} />
                   </div>
                 </div>
               </motion.div>

@@ -1,28 +1,24 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {GoogleGenAI} from '@google/genai';
-import { Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
+import {History, Plus, Send, Sparkles, Bot, User, Loader2, Trash2} from 'lucide-react';
 import { cn } from '../lib/utils';
 import {useWorkspace} from '../context/WorkspaceContext';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
-export default function SyncroAI() {
-  const {data} = useWorkspace();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', content: "Hello! I'm Syncro AI. I can help you analyze tasks, summarize team progress, or suggest workflow optimizations. How can I assist you today?" }
-  ]);
+interface SyncroAIProps {
+  onOpenHistory?: () => void;
+}
+
+export default function SyncroAI({onOpenHistory}: SyncroAIProps) {
+  const {data, actions} = useWorkspace();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeConversation = data.aiConversations.find((conversation) => conversation.id === data.activeAiConversationId) ?? data.aiConversations[0];
+  const messages = activeConversation?.messages ?? [];
   const workspaceContext = useMemo(() => {
     const taskSummary = data.tasks.map((task) => `${task.title}: ${task.status}, ${task.progress}% complete, ${task.priority} priority, due ${task.dueDate}`).join('\n');
     const teamSummary = data.teamMembers.map((member) => `${member.name}: ${member.role}, ${member.status}`).join('\n');
@@ -49,8 +45,8 @@ export default function SyncroAI() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { id: createMessageId(), role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    const userMessage = { role: 'user' as const, content: input };
+    actions.addAiMessage(userMessage);
     setInput('');
     setIsLoading(true);
 
@@ -92,16 +88,11 @@ export default function SyncroAI() {
         throw lastError ?? new Error('Gemini returned an empty response.');
       }
 
-      const assistantMessage: Message = { 
-        id: createMessageId(),
-        role: 'assistant', 
-        content: responseText,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      actions.addAiMessage({role: 'assistant', content: responseText});
     } catch (error) {
       console.error("Gemini Error:", error);
       const reason = error instanceof Error ? error.message : 'Unknown Gemini connection error.';
-      setMessages(prev => [...prev, { id: createMessageId(), role: 'assistant', content: `I could not reach Gemini yet. ${reason}` }]);
+      actions.addAiMessage({role: 'assistant', content: `I could not reach Gemini yet. ${reason}`});
     } finally {
       setIsLoading(false);
     }
@@ -116,12 +107,21 @@ export default function SyncroAI() {
           </div>
           <div>
             <h3 className="font-bold text-sm text-slate-800">Neural Assistant</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active Intelligence</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{activeConversation?.title ?? 'Active Intelligence'}</p>
           </div>
         </div>
         <div className="flex gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <div className="w-2 h-2 rounded-full bg-slate-200" />
+          <button onClick={() => actions.createAiConversation()} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600" aria-label="New AI chat">
+            <Plus className="h-4 w-4" />
+          </button>
+          <button onClick={onOpenHistory} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600" aria-label="Open AI chat history">
+            <History className="h-4 w-4" />
+          </button>
+          {activeConversation && (
+            <button onClick={() => actions.clearAiConversation(activeConversation.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-red-600" aria-label="Clear current AI chat">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 

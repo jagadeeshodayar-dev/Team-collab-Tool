@@ -71,11 +71,28 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface AiMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
+export interface AiConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: AiMessage[];
+}
+
 export interface WorkspaceData {
   tasks: Task[];
   teamMembers: TeamMember[];
   notifications: Notification[];
   chats: ChatMessage[];
+  aiConversations: AiConversation[];
+  activeAiConversationId: string;
   projectAnalytics: ProjectAnalytics[];
   settings: WorkspaceSettings;
 }
@@ -87,6 +104,10 @@ export interface WorkspaceActions {
   updateTaskProgress: (taskId: string, progress: number) => void;
   addTaskComment: (taskId: string, message: string) => void;
   sendChatMessage: (memberId: string, message: string) => void;
+  createAiConversation: () => string;
+  setActiveAiConversation: (conversationId: string) => void;
+  addAiMessage: (message: Omit<AiMessage, 'id' | 'createdAt'>) => void;
+  clearAiConversation: (conversationId: string) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   clearReadNotifications: () => void;
