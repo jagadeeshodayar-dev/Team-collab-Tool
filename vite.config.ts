@@ -19,5 +19,17 @@ export default defineConfig(({mode}) => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/firebase')) return 'firebase';
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'charts';
+            if (id.includes('node_modules/@google/genai')) return 'google-ai';
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'react-vendor';
+          },
+        },
+      },
+    },
   };
 });

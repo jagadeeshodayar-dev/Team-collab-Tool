@@ -15,7 +15,7 @@
 | Code Quality | Strong | Context-based store, typed schema, modular screens, explicit actions. |
 | Security | Good for demo | `.env` ignored, documented production proxy/auth requirements, local fallback avoids hard failure. |
 | Efficiency | Strong | Single workspace listener, local fallback, no server dependency, Vite build. |
-| Testing | Good | TypeScript validation and production build documented; manual flows listed. |
+| Testing | Strong | Automated persistence tests cover Firestore sanitization and workflow status logic; TypeScript validation and production build are documented. |
 | Accessibility | Good | Semantic controls, labels, keyboard-enter chat/search flows, responsive navigation. |
 | Google Services | Strong | Gemini assistant plus Firebase Hosting and Firestore real-time collaboration. |
 

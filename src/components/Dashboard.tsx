@@ -90,8 +90,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="h-[300px] sm:h-[360px] min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <div className="h-[300px] min-h-[300px] w-full min-w-0 sm:h-[360px] sm:min-h-[360px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={300} debounce={50}>
               <AreaChart data={projectAnalytics} margin={{top: 8, right: 8, left: -20, bottom: 8}}>
                 <defs>
                   <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
@@ -116,8 +116,8 @@ export default function Dashboard() {
             Allocation Audit
           </h3>
 
-          <div className="h-[260px] sm:h-[320px] min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <div className="h-[260px] min-h-[260px] w-full min-w-0 sm:h-[320px] sm:min-h-[320px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={260} debounce={50}>
               <BarChart data={taskDistribution} margin={{top: 8, right: 8, left: -20, bottom: 8}}>
                 <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 600}} axisLine={false} tickLine={false} dy={5} />
                 <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px'}} />

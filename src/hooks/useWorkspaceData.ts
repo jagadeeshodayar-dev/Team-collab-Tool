@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {doc, onSnapshot, setDoc} from 'firebase/firestore';
 import {firebaseDb} from '../lib/firebase';
+import {sanitizeForFirestore, taskStatusFromProgress} from '../lib/workspacePersistence';
 import {AiMessage, Task, TeamMember, WorkspaceActions, WorkspaceData, WorkspaceSettings, WorkspaceSyncStatus, WorkspaceUser} from '../types';
 import {workspaceSeed} from '../data/workspaceSchema';
 
@@ -112,8 +113,10 @@ export function useWorkspaceData() {
   const [data, setData] = useState<WorkspaceData>(loadWorkspace);
   const [user, setUser] = useState<WorkspaceUser | null>(loadUser);
   const [syncStatus, setSyncStatus] = useState<WorkspaceSyncStatus>('connecting');
+  const [remoteReady, setRemoteReady] = useState(false);
   const applyingRemoteRef = useRef(false);
   const initializedRemoteRef = useRef(false);
+  const initialWorkspaceRef = useRef(data);
   const workspaceDocRef = useMemo(() => doc(firebaseDb, ...WORKSPACE_DOC_PATH), []);
 
   useEffect(() => {
@@ -126,6 +129,7 @@ export function useWorkspaceData() {
           applyingRemoteRef.current = true;
           setData(normalizeWorkspace(remote));
           setSyncStatus('connected');
+          setRemoteReady(true);
           initializedRemoteRef.current = true;
           window.setTimeout(() => {
             applyingRemoteRef.current = false;
@@ -134,8 +138,9 @@ export function useWorkspaceData() {
         }
 
         try {
-          await setDoc(workspaceDocRef, {workspace: data, updatedAt: new Date().toISOString()});
+          await setDoc(workspaceDocRef, {workspace: sanitizeForFirestore(initialWorkspaceRef.current), updatedAt: new Date().toISOString()});
           setSyncStatus('connected');
+          setRemoteReady(true);
           initializedRemoteRef.current = true;
         } catch {
           setSyncStatus('local');
@@ -152,9 +157,10 @@ export function useWorkspaceData() {
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(data));
 
+    if (!remoteReady) return;
     if (applyingRemoteRef.current) return;
 
-    setDoc(workspaceDocRef, {workspace: data, updatedAt: new Date().toISOString()}, {merge: true})
+    setDoc(workspaceDocRef, {workspace: sanitizeForFirestore(data), updatedAt: new Date().toISOString()}, {merge: true})
       .then(() => {
         setSyncStatus('connected');
         initializedRemoteRef.current = true;
@@ -162,7 +168,7 @@ export function useWorkspaceData() {
       .catch(() => {
         setSyncStatus(initializedRemoteRef.current ? 'connected' : 'local');
       });
-  }, [data, workspaceDocRef]);
+  }, [data, remoteReady, workspaceDocRef]);
 
   useEffect(() => {
     if (user) {
@@ -228,7 +234,7 @@ export function useWorkspaceData() {
         updateWorkspace((current) => {
           const task = current.tasks.find((item) => item.id === taskId);
           if (!task) return current;
-          const status = nextProgress === 100 ? 'done' : nextProgress >= 80 ? 'review' : nextProgress > 0 ? 'in-progress' : 'todo';
+          const status = taskStatusFromProgress(nextProgress);
 
           return {
             ...current,

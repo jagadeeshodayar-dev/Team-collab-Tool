@@ -63,6 +63,7 @@ The app uses a context-driven workspace store in `src/context/WorkspaceContext.t
 Validation commands:
 
 ```bash
+npm test
 npm run lint
 npm run build
 ```
