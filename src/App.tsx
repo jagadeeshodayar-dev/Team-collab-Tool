@@ -5,7 +5,7 @@ import TaskBoard from './components/TaskBoard';
 import Personnel from './components/Personnel';
 import Notifications from './components/Notifications';
 import SyncroAI from './components/SyncroAI';
-import { Search, Globe, ChevronRight, Activity, Terminal } from 'lucide-react';
+import { Search, Globe, ChevronRight, Activity, Terminal, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 

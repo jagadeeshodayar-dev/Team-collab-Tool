@@ -4,16 +4,21 @@ import { Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
+// Initialize GoogleGenAI only when an API key is available
+// Using import.meta.env for Vite environment variables
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
 }
 
+const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export default function SyncroAI() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I'm Syncro AI. I can help you analyze tasks, summarize team progress, or suggest workflow optimizations. How can I assist you today?" }
+    { id: 'welcome', role: 'assistant', content: "Hello! I'm Syncro AI. I can help you analyze tasks, summarize team progress, or suggest workflow optimizations. How can I assist you today?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,12 +33,16 @@ export default function SyncroAI() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { id: createMessageId(), role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
+      if (!ai) {
+        throw new Error("Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your environment variables.");
+      }
+
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [...messages, userMessage].map(m => ({
@@ -46,13 +55,14 @@ export default function SyncroAI() {
       });
 
       const assistantMessage: Message = { 
+        id: createMessageId(),
         role: 'assistant', 
         content: response.text || "I'm sorry, I couldn't process that request." 
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Gemini Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "I encountered an error while connecting to the neural network. Please check your connection or API key." }]);
+      setMessages(prev => [...prev, { id: createMessageId(), role: 'assistant', content: "I encountered an error while connecting to the neural network. Please check your connection or API key." }]);
     } finally {
       setIsLoading(false);
     }
@@ -81,9 +91,9 @@ export default function SyncroAI() {
         className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth bg-white"
       >
         <AnimatePresence initial={false}>
-          {messages.map((m, i) => (
+          {messages.map((m) => (
             <motion.div
-              key={i}
+              key={m.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={cn(
